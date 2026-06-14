@@ -22,4 +22,4 @@ El flujo principal lee los términos de búsqueda desde un archivo de configurac
    URL_OCC=[https://www.occ.com.mx/](https://www.occ.com.mx/)
    MAIL_USER=tu_correo@ejemplo.com
    PASS_USER=tu_contrasena_secreta
-   EXCEL_FILE=mis_busquedas.xlsx
+   EXCEL_FILE=busqueda_vacantes.xlsx
