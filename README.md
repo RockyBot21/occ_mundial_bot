@@ -1,4 +1,4 @@
-# OCC Job Scraper 🚀
+# OCC Job search
 
 Script de automatización en Python desarrollado para optimizar la búsqueda de empleo en la plataforma OCC Mundial utilizando **Selenium WebDriver**. La herramienta automatiza el proceso de inicio de sesión, realiza búsquedas secuenciales basadas en palabras clave y extrae los títulos de las vacantes disponibles directamente a la consola.
 
