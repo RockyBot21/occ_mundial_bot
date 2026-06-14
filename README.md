@@ -14,11 +14,12 @@ El flujo principal lee los términos de búsqueda desde un archivo de configurac
 
 ## 🛠️ Instalación y Configuración Básica
 
-Agregar usuario y contraseña a archivo .env 
+ Para comenzar, instale las dependencias necesarias en su terminal (Las cuales estan integradas en el archivo requirements.txt)
 
-URL_OCC=[https://www.occ.com.mx/](https://www.occ.com.mx/)
-MAIL_USER=tu_correo@ejemplo.com
-PASS_USER=tu_contrasena_secreta
-EXCEL_FILE=mis_busquedas.xlsx
-
-Para comenzar, instale las dependencias necesarias en su terminal (Las cuales estan integradas en el archivo requirements.txt
+1. **Agregar usuario y contraseña a archivo `.env`:**
+   Cree un archivo llamado `.env` en la raíz del proyecto y configure sus credenciales de la siguiente manera:
+   ```env
+   URL_OCC=[https://www.occ.com.mx/](https://www.occ.com.mx/)
+   MAIL_USER=tu_correo@ejemplo.com
+   PASS_USER=tu_contrasena_secreta
+   EXCEL_FILE=mis_busquedas.xlsx
