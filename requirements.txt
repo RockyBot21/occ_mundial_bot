@@ -1,0 +1,6 @@
+﻿python==3.12.*
+selenium==4.44.0
+webdriver-manager==4.1.2
+python-dotenv==1.2.2
+xlsxwriter==3.2.9
+openpyxl==3.1.5
