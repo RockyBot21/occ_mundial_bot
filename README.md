@@ -1,25 +1,24 @@
-# OCC Job search
+# OCC Job Search & Smart Match Bot
 
-Script de automatización en Python desarrollado para optimizar la búsqueda de empleo en la plataforma OCC Mundial utilizando **Selenium WebDriver**. La herramienta automatiza el proceso de inicio de sesión, realiza búsquedas secuenciales basadas en palabras clave y extrae los títulos de las vacantes disponibles directamente a la consola.
+Script de automatización en Python desarrollado para optimizar, centralizar y emparejar de forma inteligente la búsqueda de empleo en la plataforma **OCC Mundial** utilizando **Selenium WebDriver**. 
 
-El flujo principal lee los términos de búsqueda desde un archivo de configuración de Excel, interactúa de forma segura con la interfaz web y gestiona los tiempos de carga para garantizar una ejecución fluida.
-
-## ⚡ Características Principales
-
-* **Autenticación Segura:** Inicio de sesión automatizado utilizando variables de entorno (`.env`) para proteger las credenciales de acceso.
-* **Generación Automática de Plantillas:** Si el archivo de entrada Excel no existe, el script lo crea automáticamente con la estructura requerida.
-* **Robustez ante Cargas Dinámicas:** Implementación de esperas explícitas (`WebDriverWait`) y manejo de excepciones (`StaleElementReferenceException`) para mitigar errores por renderizado lento de la página.
+A diferencia de un scraper tradicional, esta herramienta cuenta con un sistema híbrido que gestiona perfiles de candidatos en una base de datos local SQLite y los contrasta en tiempo real con los requisitos de salario e idioma de las vacantes en la web.
 
 ---
 
-## 🛠️ Instalación y Configuración Básica
+## ⚡ Características Principales
 
- Para comenzar, instale las dependencias necesarias en su terminal (Las cuales estan integradas en el archivo requirements.txt)
+* **Smart Matching Local-Web:** Filtra y evalúa las vacantes de forma automática. El bot extrae el salario e idioma requeridos en la oferta web y te avisa si cumple (`MATCH`) o no con tus expectativas guardadas.
+* **Gestión de Usuarios (SQLite):** Almacena de forma persistente tu configuración de búsqueda (expectativa salarial, idioma dominante, nombre y contraseña de OCC) en una base de datos local (`sistema_usuarios.db`).
+* **Búsquedas Secuenciales por Excel:** Lee los puestos objetivos desde un archivo Excel (`.xlsx`). Si el archivo no existe en la raíz, el script lo genera automáticamente con la plantilla correcta.
+* **Navegación Avanzada y Robusta:** Diseñado con esperas explícitas (`WebDriverWait`) y clics forzados mediante inyecciones de JavaScript (`execute_script`) para evitar bloqueos por renderizados lentos o elementos superpuestos (`ElementClickInterceptedException`).
 
-1. **Agregar usuario y contraseña a archivo `.env`:**
-   Cree un archivo llamado `.env` en la raíz del proyecto y configure sus credenciales de la siguiente manera:
-   ```env
-   URL_OCC=[https://www.occ.com.mx/](https://www.occ.com.mx/)
-   MAIL_USER=tu_correo@ejemplo.com
-   PASS_USER=tu_contrasena_secreta
-   EXCEL_FILE=busqueda_vacantes.xlsx
+---
+
+## 🛠️ Instalación y Configuración
+
+### 1. Requisitos Previos e Instalación
+Asegúrate de tener un entorno de Python listo (como un entorno virtual de Conda o venv) e instala las dependencias empaquetadas en tu archivo de requerimientos:
+
+```bash
+pip install -r requirements.txt
