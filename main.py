@@ -14,7 +14,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium import webdriver
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 from pathlib import Path
 from time import sleep
 import xlsxwriter
@@ -349,12 +349,9 @@ def obtener_datos_usuario(correo):
 
 def menu_principal():
     """Estructura de control principal del programa.""" 
-    # Read dot env file
-    load_dotenv()
-
     # Load variables
-    url_occ_mundial  = os.getenv("URL_OCC")
-    excel_file       = os.getenv("EXCEL_FILE")
+    url_occ_mundial  = "https://www.occ.com.mx/"
+    excel_file       = "busqueda_vacantes.xlsx"
 
     # Ruta origen
     base_path = str(Path(__file__).parent)
