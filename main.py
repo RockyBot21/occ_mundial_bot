@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Fri Jun 12 20:31:01 2026
+Created on Fri Jun 26 20:05:26 2026
 
-@author: arturo
+@author: a
 """
 from selenium.common.exceptions import StaleElementReferenceException
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.wait import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.service import Service
@@ -18,7 +19,155 @@ from pathlib import Path
 from time import sleep
 import xlsxwriter
 import openpyxl
-import os, sys, re
+import os, sys, re, sqlite3
+
+DATABASE_NAME = "sistema_usuarios.db"
+usuarios = {}
+vacantes_ccc = [
+ {"id_vacante": 1, "campana": "Soporte Técnico", "idioma": "Inglés", "salario_min":
+15000},
+ {"id_vacante": 2, "campana": "Ventas Outbound", "idioma": "Español", "salario_min":
+8000},
+ {"id_vacante": 3, "campana": "Atención a Clientes VIP", "idioma": "Inglés", "salario_min":
+18000}
+]
+def registrar_candidato(correo):
+    """Registra un nuevo usuario en el sistema solicitando sus requerimientos mínimos."""
+    print("\n--- REGISTRO DE CANDIDATO ---")
+    print(f"Correo electrónico (Servirá como ID): {correo}")
+
+    mail_regex_pattern = r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,7}"
+    if bool(re.findall(mail_regex_pattern, correo, re.IGNORECASE)):
+        if correo in usuarios:
+            print("Error: El usuario ya está registrado.")
+        else:
+            nombre = input("Nombre completo: ")
+            idioma = input("Nivel de idioma dominante (Inglés/Español): ")
+            salario = float(input("Expectativa salarial mínima mensual (Ej. 10000): "))
+            password = input("Contraseña (Recomendado alfanumérica con caracteres especiales): ")
+    
+            usuarios[correo] = {
+                "nombre": nombre,
+                "idioma": idioma.capitalize(),
+                "salario_esperado": salario,
+                "password": password
+            }
+            
+            # Crear base de datos sqlite
+            with sqlite3.connect(DATABASE_NAME) as conn:
+                cursor = conn.cursor()
+                
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS usuarios (
+                        correo TEXT PRIMARY KEY,
+                        nombre TEXT NOT NULL,
+                        idioma TEXT,
+                        salario_esperado REAL,
+                        password TEXT NOT NULL                
+                    )
+                """)
+                
+                query = """
+                    INSERT OR REPLACE INTO usuarios (correo, nombre, idioma, salario_esperado, password)
+                    VALUES (?, ?, ?, ?, ?)
+                """
+                
+                for email, info in usuarios.items():
+                    datos_registro = (
+                        email,  # Usamos 'email' del diccionario, no la variable global de arriba
+                        info['nombre'], 
+                        info['idioma'], 
+                        info['salario_esperado'],
+                        info['password']
+                    )
+                    cursor.execute(query, datos_registro)
+                
+                # Al salir del bloque 'with', se ejecuta conn.commit() automáticamente
+                print("*** Usuario guardado exitosamente en la Base de Datos ***")
+    else:
+        print("NO se ingresó un correo válido")
+    
+def consultar_perfil(driver):
+    """Permite al usuario ver sus datos registrados."""
+    print("Logging success")        
+    search_btn = driver.find_element(By.CSS_SELECTOR, '[data-testid="nav-search"]')
+    search_btn.click()
+    
+    sleep(2)
+    driver.find_element(By.CSS_SELECTOR, 'a[href="https://www.occ.com.mx/curriculo"]').click()
+    
+    sleep(2)
+    nombre = driver.find_element(By.CSS_SELECTOR, "#personal-info p").text
+    print(f"\nPerfil de: {nombre}")
+ 
+    elementos_idiomas = driver.find_elements(By.CSS_SELECTOR, "#languages button span")
+    lista_idiomas = [idioma.text for idioma in elementos_idiomas if idioma.text.strip()]
+    print(f"Idioma: {' '.join(lista_idiomas)}")
+    
+    xpath_salario = "//div[@id='profession']//p[text()='Salario aproximado']/following-sibling::p"
+    salario = driver.find_element(By.XPATH, xpath_salario).text
+    print(f"Expectativa Salarial: {salario}")
+
+
+def modificar_perfil(driver):
+    nuevo_salario = float(input("Nueva expectativa salarial mínima: "))
+    search_btn = driver.find_element(By.CSS_SELECTOR, '[data-testid="nav-search"]')
+    search_btn.click()
+    
+    sleep(2)
+    driver.find_element(By.CSS_SELECTOR, 'a[href="https://www.occ.com.mx/curriculo"]').click()
+    
+    xpath_lapiz = "//div[@id='profession']//*[contains(@class, 'atomic__pencil')]"
+    elemento_lapiz = driver.find_element(By.XPATH, xpath_lapiz)
+
+    actions = ActionChains(driver)
+    actions.move_to_element(elemento_lapiz).click().perform()
+    
+    input_salario = WebDriverWait(driver, 10).until(
+        EC.visibility_of_element_located((By.ID, "salary")))
+    
+    input_salario.send_keys(Keys.CONTROL + "a")
+    input_salario.send_keys(Keys.BACKSPACE)
+
+    input_salario.send_keys(nuevo_salario)
+    
+    boton_guardar = driver.find_element(By.CSS_SELECTOR, "button[data-testid='saveData']")
+    boton_guardar.click()
+    print(f"Salario cambiado con éxito a: {nuevo_salario}")
+    print("¡Perfil actualizado correctamente!")
+
+        
+def eliminar_perfil(correo):
+    """Elimina el registro del usuario del sistema."""
+    try:
+        with sqlite3.connect(DATABASE_NAME) as conn:
+            cursor = conn.cursor()
+        
+            cursor.execute("DELETE FROM usuarios WHERE correo = ?", (correo,))
+
+        print(f"El usuario con correo {correo} ha sido eliminado.")
+    except Exception as e:
+        print(F"No se encontró ningún usuario con el correo {correo}.")
+        
+def buscar_vacantes_match():
+    """Cruza el perfil del usuario con las vacantes para mostrar solo las viables."""
+    correo = input("\nIngresa tu correo para buscar vacantes (Match): ")
+    if correo in usuarios:
+        perfil = usuarios[correo]
+        print(f"\nBuscando vacantes para {perfil['nombre']}...")
+        encontro_match = False
+
+    # Ciclo para iterar sobre las vacantes disponibles
+    for vacante in vacantes_ccc:
+        # Condicional para validar compatibilidad (El núcleo del Smart Matching)
+        if vacante["idioma"] == perfil["idioma"] and vacante["salario_min"] >= perfil["salario_esperado"]:
+            print(f"-> MATCH ENCONTRADO: {vacante['campana']} | Salario: ${vacante['salario_min']} | Idioma: {vacante['idioma']}")
+            encontro_match = True
+
+    if not encontro_match:
+        print("Por el momento no hay vacantes que cumplan con tus requisitos exactos.")
+    else:
+        print("Debes estar registrado para buscar vacantes.")
 
 def logging_page(driver:webdriver, user:str, password:str):
     try:
@@ -84,67 +233,111 @@ def excel_has_roles_to_search(excel_file_path:str):
 def search_role_pos_in_occ(roles_to_search:list[str]):
     pass
 
-def main():
+def obtener_datos_usuario(correo):
+    """
+    Busca un usuario por su correo en la base de datos.
+    """
+    try:
+        with sqlite3.connect(DATABASE_NAME) as conn:
+            cursor = conn.cursor()
+            
+            # Traemos las 5 columnas correspondientes de la tabla
+            query = """
+                SELECT correo, nombre, idioma, salario_esperado, password 
+                FROM usuarios 
+                WHERE correo = ?
+            """
+            cursor.execute(query, (correo,))
+            resultado = cursor.fetchone()
+            
+            if resultado:
+                datos_usuario = {
+                    "correo": resultado[0],
+                    "nombre": resultado[1],
+                    "idioma": resultado[2],
+                    "salario_esperado": resultado[3],
+                    "password": resultado[4]
+                }
+                return datos_usuario
+            else:
+                return None
+                    
+    except sqlite3.OperationalError:
+        # Por si la tabla aún no ha sido creada en la base de datos
+        print("Error: La tabla 'usuarios' no existe todavía.")
+        return None
+
+def menu_principal():
+    """Estructura de control principal del programa.""" 
     # Read dot env file
     load_dotenv()
 
     # Load variables
     url_occ_mundial  = os.getenv("URL_OCC")
-    user_cred        = os.getenv("MAIL_USER")
-    pass_cred        = os.getenv("PASS_USER")
     excel_file       = os.getenv("EXCEL_FILE")
-    
-    base_path = str(Path(__file__).parent)
-    excel_file_path = os.path.join(base_path, excel_file)
-    
-    if not bool(excel_search_role_pos(excel_file_path)):
-        raise Exception(f"Ejecutar nuevamente: Archivo excel '{excel_file}' se creo.")
 
-    ls_roles_to_search = excel_has_roles_to_search(excel_file_path=excel_file_path)
-    if not bool(ls_roles_to_search):
-        raise Exception(f"Especificar las vacantes que desea buscar por nombre o palabra clave en archivo '{excel_file_path}'")
+    opcion = ""
+    while opcion != "5":
+        print("\n=== SMART MATCHING CCC ===")
+        print("1. Consultar Perfil")
+        print("2. Modificar Perfil")
+        print("3. Eliminar Perfil")
+        print("4. Buscar Vacantes (Smart Match)")
+        print("5. Salir")
 
-    # Create the instance of driver (Who control the web page)
-    service = Service(ChromeDriverManager().install())
-    driver  = webdriver.Chrome(service=service)
+        opcion = input("Selecciona una opción: ")
         
-    # Wait for o load the web page
-    driver.implicitly_wait(30)
-    driver.maximize_window()
-    
-    # Enter to the web page
-    open_web_page(driver=driver, url_web_page=url_occ_mundial)
-    logging_result = logging_page(driver=driver, user=user_cred, password=pass_cred)
-    
-    if logging_result:
-        print("Logging success")        
-        search_btn = driver.find_element(By.CSS_SELECTOR, '[data-testid="nav-search"]')
-        search_btn.click()
-
-        # Search Roles position in OCC search input
-        for role in ls_roles_to_search:
-            search_role_input = WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.ID, "prof-cat-search-input-desktop")))
-            search_role_input.send_keys(Keys.CONTROL, "a")
-            search_role_input.send_keys(Keys.BACKSPACE)
-
-            search_role_input.send_keys(role.lower())
-            search_role_input.send_keys(Keys.ENTER) 
-            sleep(4)
+        if bool(re.findall("[1-5]", opcion)):
+            mail_access = input("Ingrese su correo para ingresar a cuenta: ")
             
-            all_jobs_search = driver.find_elements(By.CSS_SELECTOR, "div[data-offers-grid-offer-item-container]")
-    
-            if bool(all_jobs_search):
-                print("********** EMPLEOS ENCONTRADOS **********")
-                for job_pos in all_jobs_search:
-                    try:
-                        job_name = job_pos.find_element(By.TAG_NAME, "h2").text.strip()
-                        print(f" - {job_name}")
-                        #driver.execute_script("arguments[0].click();", job_pos)
-                                                
-                    except StaleElementReferenceException:
-                        continue
-                print("===============================================")
-    driver.close()
+            # Establecer conexión 
+            with sqlite3.connect(DATABASE_NAME) as conn:
+                cursor = conn.cursor()
+        
+            cursor.execute("SELECT count(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';")
+            total_tablas = cursor.fetchone()[0]
 
+            if total_tablas == 0:
+                print("La base de datos está vacía (sin tablas).")
+            else:
+                # Retry empty user
+                while True:
+                    usuario = obtener_datos_usuario(correo=mail_access)                    
+                    if bool(usuario):
+                        break
+                    registrar_candidato(correo=mail_access)
+                
+            mail_regex_pattern = "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,7}"
+            if bool(re.findall(mail_regex_pattern, mail_access, re.IGNORECASE)):
+                # Create the instance of driver (Who control the web page)
+                service = Service(ChromeDriverManager().install())
+                driver  = webdriver.Chrome(service=service)
+                    
+                # Wait for o load the web page
+                driver.implicitly_wait(30)
+                driver.maximize_window()
+                
+                # Enter to the web page
+                open_web_page(driver=driver, url_web_page=url_occ_mundial)            
+                logging_result = logging_page(driver=driver, user=usuario["correo"], password=usuario["password"])
+                    
+                if opcion == "1":
+                    consultar_perfil(driver)
+                elif opcion == "2":
+                    modificar_perfil(driver)
+                elif opcion == "3":
+                    eliminar_perfil(mail_access)
+                elif opcion == "4":
+                    buscar_vacantes_match()
+                elif opcion == "5":
+                    print("Saliendo del sistema...")
+                
+                driver.close()
+                
+        else:
+            print("Opción no válida. Intenta de nuevo.")
+
+
+# Ejecución del programa
 if __name__ == "__main__":
-    main()
+    menu_principal()
