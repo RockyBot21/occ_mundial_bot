@@ -199,20 +199,41 @@ def buscar_vacantes_match(excel_file_path:str, driver, usuario):
                     # Get info job position
                     job_name = job_pos.find_element(By.TAG_NAME, "h2").text.strip()
                     print(f" - {job_name}")
+                    
+                    # Movemos la vista hacia la tarjeta actual para que no haya problemas
+                    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", job_pos)
+                    sleep(1)
+                    
+                    # Hacemos clic directo usando JavaScript sobre 'job_pos' (ELIMINAMOS EL XPATH)
+                    driver.execute_script("arguments[0].click();", job_pos)
+                    sleep(2)
+                    
+                    # El script continúa normal con el contenedor de detalles...
+                    job_pos_text = driver.find_element(By.ID, "job-detail-container").text
+                    """
+                    job_name = job_pos.find_element(By.TAG_NAME, "h2").text.strip()
+                    print(f" - {job_name}")
+                    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", job_pos)
+                    sleep(1)
                     job_full_info = driver.find_element(By.XPATH, f"//aside//div[contains(@class, 'card-job-offer')]//h2[contains(text(), '{job_name}')]")
-                    job_full_info.click()
+                    #job_full_info.click()
+                    driver.execute_script("arguments[0].click();", job_full_info)
+
                     sleep(2)
                     job_pos = driver.find_element(By.ID, "job-detail-container").text
-                    
+                    """
                     try:
                         # Get salary
                         salary = re.findall(r"(\d[\d,.]*)\s*(?:-|–|—|[aA]\b|al\b|hasta\b)\s*(?:[^0-9\n]*)\s*(\d[\d,.]*)", job_pos)
                         min_salary = salary[0][0]
                         max_salary = salary[0][1]
                         
+                        if ',' in min_salary:    min_salary = float(min_salary.replace(',', ''))
+                        if ',' in max_salary:    max_salary = float(max_salary.replace(',', ''))                        
+                            
                         print(f"- Salario minimo {min_salary}\n- Salario maximo {max_salary}")
                         
-                        if min_salary >= usuario["salario_esperado"]:
+                        if float(min_salary) >= usuario["salario_esperado"]:
                             cover_salary = True
                     except:
                         print("Salario no mostrado")
@@ -226,7 +247,7 @@ def buscar_vacantes_match(excel_file_path:str, driver, usuario):
                     else:
                         cover_language = True
                         
-                    if cover_language and cover_language:
+                    if cover_language and cover_salary:
                         print("POSTULARSE")
                         
                     else:
@@ -351,14 +372,16 @@ def menu_principal():
         opcion = input("Selecciona una opción: ")
         
         if bool(re.findall("[1-5]", opcion)):
+            if int(opcion) == 5:    break
+                        
             mail_access = input("Ingrese su correo para ingresar a cuenta: ")
             
             # Establecer conexión 
             with sqlite3.connect(DATABASE_NAME) as conn:
                 cursor = conn.cursor()
         
-            cursor.execute("SELECT count(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';")
-            total_tablas = cursor.fetchone()[0]
+                cursor.execute("SELECT count(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';")
+                total_tablas = cursor.fetchone()[0]
 
             if total_tablas == 0:
                 print("La base de datos está vacía (sin tablas).")
